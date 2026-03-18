@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Routes of Banned Pesticides — Spain 2026</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; font-family: 'Inter', -apple-system, sans-serif; color: #e8e8ec; overflow-x: hidden; }
+
+  .header {
+    position: relative; z-index: 1000;
+    padding: 16px 40px 12px;
+    background: linear-gradient(180deg, rgba(10,10,15,0.98) 0%, rgba(10,10,15,0.85) 80%, transparent 100%);
+  }
+  .header .subtitle { font-size: 13px; color: #888; margin-top: 5px; font-weight: 300; line-height: 1.5; }
+  .header .subtitle span { color: #ff6b3d; font-weight: 600; }
+  .header .data-note { font-size: 11px; color: #666; margin-top: 4px; font-style: italic; }
+
+  #map { width: 100%; height: calc(100vh - 100px); background: #0a0a0f; }
+  .leaflet-container { background: #0a0a0f !important; }
+
+  .info-panel {
+    position: absolute; bottom: 32px; left: 32px; z-index: 1000;
+    background: rgba(15, 15, 22, 0.92); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,107,61,0.15); border-radius: 16px;
+    padding: 16px; max-width: 300px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .info-panel h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #ff6b3d; margin-bottom: 10px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { font-size: 10.5px; color: #888; font-weight: 400; }
+  .stat-value { font-size: 12px; font-weight: 700; color: #e8e8ec; }
+  .stat-value.highlight { color: #ff6b3d; }
+  .stat-note { font-size: 9.5px; color: #666; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 4px; line-height: 1.4; }
+
+  .legend {
+    position: absolute; bottom: 32px; right: 32px; z-index: 1000;
+    background: rgba(15, 15, 22, 0.92); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,107,61,0.15); border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .legend h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: #888; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; font-size: 11.5px; color: #aaa; }
+  .legend-line { width: 30px; height: 3px; border-radius: 2px; }
+
+  .tooltip-custom {
+    background: rgba(15,15,22,0.95) !important; border: 1px solid rgba(255,107,61,0.3) !important;
+    border-radius: 10px !important; padding: 12px 16px !important;
+    font-family: 'Inter', sans-serif !important; color: #e8e8ec !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important; font-size: 12px !important;
+  }
+  .tooltip-custom .tooltip-country { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+  .tooltip-custom .tooltip-notif { color: #ff6b3d; font-weight: 600; }
+  .tooltip-custom .tooltip-products { color: #999; font-size: 11px; margin-top: 5px; line-height: 1.4; }
+  .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before,
+  .leaflet-tooltip-left:before, .leaflet-tooltip-right:before { border-top-color: rgba(15,15,22,0.95) !important; }
+
+  .pulse-origin { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.15)} }
+
+  .region-tag {
+    display: inline-block; padding: 2px 7px; border-radius: 4px;
+    font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tag-africa { background: rgba(255,170,61,0.15); color: #ffaa3d; }
+  .tag-latam { background: rgba(61,255,161,0.15); color: #3dffa1; }
+  .tag-asia { background: rgba(61,161,255,0.15); color: #3da1ff; }
+  .tag-europe { background: rgba(161,61,255,0.15); color: #a13dff; }
+  .tag-mideast { background: rgba(255,61,107,0.15); color: #ff3d6b; }
+  .tag-oceania { background: rgba(61,255,255,0.15); color: #3dffff; }
+  .tag-namerica { background: rgba(200,200,200,0.1); color: #ccc; }
+  .leaflet-control-zoom { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="subtitle">Export notifications of hazardous chemicals registered by <span>Spain</span> in <span>2026</span></div>
+  <div class="data-note">Source: ECHA (European Chemicals Agency), PIC notification database. Export date 30/01/2026. Each dot represents individual notifications, not volume. Map: Naia Ormaza Zulueta.</div>
+</div>
+
+<div id="map"></div>
+
+<div class="info-panel">
+  <h3>Spain &rarr; 105 countries</h3>
+  <div class="stat-row">
+    <span class="stat-label">Export notifications (2026)</span>
+    <span class="stat-value highlight">1,072</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Distinct substances or mixtures</span>
+    <span class="stat-value">327</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Destination countries</span>
+    <span class="stat-value">105</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">To Latin America & Caribbean</span>
+    <span class="stat-value">~350 notif.</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">To Africa</span>
+    <span class="stat-value">~210 notif.</span>
+  </div>
+  <div class="stat-note">
+    Each notification is an intent to export registered with the ECHA. A single notification may cover large volumes.
+  </div>
+</div>
+
+<div class="legend">
+  <h4>No. of notifications</h4>
+  <div class="legend-item">
+    <div class="legend-line" style="background: linear-gradient(90deg, #ff3d3d, #ff6b3d); height: 5px;"></div>
+    <span>> 30 notifications</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background: linear-gradient(90deg, #ff8c3d, #ffaa3d); height: 3.5px;"></div>
+    <span>15–30</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background: linear-gradient(90deg, #ffcc3d, #ffe03d); height: 2.5px;"></div>
+    <span>5–15</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background: rgba(255,255,255,0.25); height: 1.5px;"></div>
+    <span>< 5</span>
+  </div>
+  <h4 style="margin-top: 14px;">Destination region</h4>
+  <div class="legend-item"><span class="region-tag tag-latam">Latin America</span></div>
+  <div class="legend-item"><span class="region-tag tag-africa">Africa</span></div>
+  <div class="legend-item"><span class="region-tag tag-asia">Asia-Pacific</span></div>
+  <div class="legend-item"><span class="region-tag tag-mideast">Middle East</span></div>
+  <div class="legend-item"><span class="region-tag tag-europe">Europe (non-EU)</span></div>
+  <div class="legend-item"><span class="region-tag tag-oceania">Oceania</span></div>
+</div>
+
+<script>
+const SPAIN = [40.4, -3.7];
+
+// Verified data: 105 destinations from ECHA CSV (export-notifications-export.csv)
+// Each entry: [name, lat, lng, notifications, region, topProducts]
+const destinations = [
+  ["Morocco", 31.8, -7.1, 60, "africa", "Household insecticides, CAMALEÓN, SANIVIR"],
+  ["Costa Rica", 9.9, -84.1, 39, "latam", "BIOGEL, CAMALEÓN PLUS, FINIGEN"],
+  ["Mexico", 23.6, -102.5, 34, "latam", "BIOSANIVIR, QUATERBAC, SANIVIR"],
+  ["Peru", -9.2, -75.0, 33, "latam", "Potassium chlorate, RATOLÍ, SANIVIR"],
+  ["UAE", 23.4, 53.8, 33, "mideast", "MIDAPRID, SANIVIR, fumigants"],
+  ["Ecuador", -1.8, -78.2, 32, "latam", "ECTOMATE, RATOLI, RATOLI LÍQUIDO"],
+  ["United Kingdom", 55.4, -3.4, 29, "europe", "ACTICIDE DDQ 40/50/70"],
+  ["Dominican Rep.", 18.7, -70.2, 28, "latam", "Household insecticides, SANIVIR"],
+  ["USA", 37.1, -95.7, 25, "namerica", "ACTICIDE, industrial chemicals"],
+  ["Colombia", 4.6, -74.3, 24, "latam", "Chloroform, RATIGEN, 1,3-dichloropropene"],
+  ["Panama", 8.5, -80.8, 24, "latam", "FINIGEN, RATOLI LÍQUIDO, RATOLÍ"],
+  ["Guatemala", 15.8, -90.2, 23, "latam", "PODY, RATOLÍ, SANIVIR"],
+  ["Ukraine", 48.4, 31.2, 23, "europe", "CAMALEÓN, creosote, Propineb"],
+  ["Tunisia", 33.9, 9.5, 22, "africa", "SANIVIR, BDN25"],
+  ["Turkey", 39.9, 32.9, 20, "mideast", "ACTICIDE DDQ, insecticides"],
+  ["Israel", 31.0, 34.9, 18, "mideast", "1,3-dichloropropene, CAMALEÓN"],
+  ["South Africa", -30.6, 22.9, 18, "africa", "1,3-dichloropropene, ACTICIDE"],
+  ["Chile", -35.7, -71.5, 17, "latam", "Chloroform, 1,3-dichloropropene"],
+  ["Egypt", 26.8, 30.8, 16, "africa", "SANIVIR, 1,3-dichloropropene"],
+  ["Honduras", 15.2, -86.2, 16, "latam", "CAMALEÓN PLUS, FINIGEN, SANIVIR"],
+  ["Ghana", 7.9, -1.0, 16, "africa", "Household insecticides, 1,3-dichloropropene"],
+  ["Russia", 55.8, 37.6, 16, "europe", "SANIVIR, Abamectin, CTD+PFL"],
+  ["Nicaragua", 12.9, -85.2, 14, "latam", "1,3-dichloropropene, ACARITRON"],
+  ["Australia", -25.3, 133.8, 14, "oceania", "1,3-dichloropropene (various formulations)"],
+  ["Serbia", 44.0, 21.0, 14, "europe", "ALFASECT, BIOGEL"],
+  ["El Salvador", 13.8, -88.9, 13, "latam", "CAMALEÓN PLUS, PODY, SANIVIR"],
+  ["Algeria", 28.0, 1.7, 13, "africa", "RATOLI, SANIVIR"],
+  ["Ivory Coast", 7.5, -5.5, 13, "africa", "SANIVIR, chloroform, creosote"],
+  ["Norway", 60.5, 8.5, 13, "europe", "PA003, PUR coatings"],
+  ["Uruguay", -32.5, -55.8, 12, "latam", "RATOLÍ, 1,3-dichloropropene"],
+  ["Qatar", 25.3, 51.2, 11, "mideast", "MIDA AIRFUM, fumigants"],
+  ["Saudi Arabia", 23.9, 45.1, 11, "mideast", "SANIVIR, ADITIVO SX"],
+  ["Bolivia", -16.3, -63.6, 11, "latam", "RATOLÍ, SANIVIR, ARPON"],
+  ["Bosnia-Herzegovina", 43.9, 17.7, 10, "europe", "BIOGEL, Würth coatings"],
+  ["Kenya", -1.3, 36.8, 10, "africa", "Abamectin, insecticides"],
+  ["Georgia", 42.3, 43.4, 10, "europe", "Abamectin, CTD+PFL, DLT+TCP"],
+  ["Kazakhstan", 48.0, 68.0, 10, "asia", "Abamectin, CTD+PFL, CYB+IMD"],
+  ["Switzerland", 46.8, 8.2, 10, "europe", "Chloroform, Imidacloprid"],
+  ["Jordan", 30.6, 36.2, 9, "mideast", "Abamectin, chloroform, FUMITHOR"],
+  ["Thailand", 15.9, 100.9, 9, "asia", "BIOPOL, chloroform, FUNGIPOL"],
+  ["Philippines", 12.9, 121.8, 9, "asia", "SANIVIR, CTD, DESPADAC"],
+  ["Angola", -11.2, 17.9, 9, "africa", "Household insecticides, PMT"],
+  ["Argentina", -38.4, -63.6, 8, "latam", "1,3-dichloropropene, creosote"],
+  ["Belarus", 53.7, 27.9, 8, "europe", "Abamectin, CTD+PFL"],
+  ["Brazil", -14.2, -51.9, 8, "latam", "Creosote, chloroform, AIRFUM"],
+  ["Venezuela", 6.4, -66.6, 8, "latam", "ARPON, BDN25, DESPADAC"],
+  ["Albania", 41.2, 20.2, 8, "europe", "CAMALEÓN+, RATOLÍ, SANIVIR"],
+  ["Iraq", 33.2, 43.7, 8, "mideast", "SANIVIR, chloroform"],
+  ["Andorra", 42.5, 1.5, 8, "europe", "CONPACK (disinfectants)"],
+  ["Madagascar", -18.8, 46.9, 8, "africa", "Household insecticides, PMT"],
+  ["Libya", 26.3, 17.2, 8, "africa", "DDAC disinfectants, PMT"],
+  ["Congo", -0.2, 15.8, 8, "africa", "Household insecticides, FUNGIPOL"],
+  ["Mauritius", -20.3, 57.6, 8, "africa", "Household insecticides, PMT"],
+  ["French Polynesia", -17.7, -149.4, 8, "oceania", "PMT, PA001/003"],
+  ["China", 35.9, 104.2, 7, "asia", "Cadmium, chloroform, FUMITHOR"],
+  ["Senegal", 14.5, -14.5, 7, "africa", "DDAC disinfectants, insecticides"],
+  ["Gabon", -0.8, 11.6, 7, "africa", "Household insecticides, PMT"],
+  ["Mongolia", 46.9, 103.8, 7, "asia", "PA001/002/003"],
+  ["Cuba", 21.5, -78.0, 6, "latam", "1,3-dichloropropene, disinfectants"],
+  ["Taiwan", 23.7, 121.0, 6, "asia", "Imidacloprid, AQUAMETRIC"],
+  ["Lebanon", 33.9, 35.5, 6, "mideast", "BIOPOL, FUNGIPOL"],
+  ["Indonesia", -0.8, 113.9, 6, "asia", "SANIVIR, Clothianidin, Famoxadone"],
+  ["New Caledonia", -20.9, 165.6, 6, "oceania", "PA001/003/011"],
+  ["Vietnam", 14.1, 108.3, 5, "asia", "ARPON, FUMITHOR, FUNGIPOL"],
+  ["Benin", 9.3, 2.3, 5, "africa", "Disinfectants, insecticides"],
+  ["South Korea", 35.9, 127.8, 5, "asia", "SANIVIR, Famoxadone, Picoxystrobin"],
+  ["Cameroon", 7.4, 12.4, 5, "africa", "FUNGIPOL, insecticides, PMT"],
+  ["Togo", 8.6, 1.2, 5, "africa", "Household insecticides, PMT"],
+  ["Iceland", 64.1, -18.9, 5, "europe", "MIDA AIRFUM, fumigants"],
+  ["New Zealand", -40.9, 174.9, 4, "oceania", "1,3-dichloropropene, chloroform"],
+  ["Paraguay", -23.4, -58.4, 4, "latam", "ARPON, chloroform, MIDA AIRFUM"],
+  ["India", 20.6, 79.0, 4, "asia", "Cadmium, Phosmet, Picoxystrobin"],
+  ["Kuwait", 29.3, 47.5, 4, "mideast", "CAMALEÓN+, SANIVIR"],
+  ["Cape Verde", 16.0, -24.0, 4, "africa", "CONPACK, insecticides, PMT"],
+  ["Pakistan", 30.4, 69.3, 4, "asia", "DESPADAC, FRUITFOG, FUMITHOR"],
+  ["Sudan", 12.9, 30.2, 4, "africa", "DLT+TCP, SANITAS"],
+  ["Nigeria", 9.1, 7.5, 4, "africa", "FUNGIPOL, NALCO"],
+  ["Burkina Faso", 12.4, -1.6, 4, "africa", "Household insecticides, PMT"],
+  ["Mali", 17.6, -4.0, 4, "africa", "Household insecticides, PMT"],
+  ["Mauritania", 21.0, -10.9, 4, "africa", "Household insecticides, PMT"],
+  ["Equatorial Guinea", 1.7, 10.3, 4, "africa", "PA001/011/015"],
+  ["Azerbaijan", 40.1, 47.6, 3, "asia", "Abamectin, FRUITFOG"],
+  ["Iran", 32.4, 53.7, 3, "mideast", "Bardac, FUNGIPOL, SANITAS"],
+  ["Tanzania", -6.4, 34.9, 3, "africa", "BDN005, CONPACK"],
+  ["Malaysia", 4.2, 101.9, 3, "asia", "BDN25, Imidacloprid, SANITAS"],
+  ["Maldives", 3.2, 73.2, 3, "asia", "CONPACK, DEOBACT"],
+  ["Uzbekistan", 41.4, 64.6, 3, "asia", "CTD+PFL, SANITAS"],
+  ["North Macedonia", 41.5, 21.7, 3, "europe", "FUNGIPOL, red lead, potassium chlorate"],
+  ["Chad", 15.5, 18.7, 3, "africa", "Household insecticides, PMT"],
+  ["Guinea", 9.9, -13.7, 3, "africa", "Household insecticides, PMT"],
+  ["Bangladesh", 23.7, 90.4, 2, "asia", "Chloroform, SANITAS"],
+  ["Yemen", 15.6, 48.5, 2, "mideast", "Chloroform, SPT 9"],
+  ["Jamaica", 18.1, -77.3, 2, "latam", "CONPACK, DEOBACT"],
+  ["Uganda", 1.4, 32.3, 2, "africa", "FUNGIPOL 237/237T"],
+  ["Curaçao", 12.2, -68.9, 2, "latam", "Household insecticides"],
+  ["Rwanda", -1.9, 29.9, 2, "africa", "PMT 025/040"],
+  ["Japan", 36.2, 138.3, 2, "asia", "Naphtha, Picoxystrobin"],
+  ["Ethiopia", 9.1, 40.5, 1, "africa", "1,3-dichloropropene + chloropicrin"],
+  ["Hong Kong", 22.3, 114.2, 1, "asia", "Chloroform"],
+  ["Palestine", 31.9, 35.2, 1, "mideast", "FUMETHAM"],
+  ["Kosovo", 42.6, 21.0, 1, "europe", "FUNGIPOL 351"],
+  ["Niger", 17.6, 8.1, 1, "africa", "Household insecticides"],
+  ["Armenia", 40.1, 44.5, 1, "europe", "Propineb 70"],
+  ["Syria", 34.8, 38.9, 1, "mideast", "RAISAN 50"],
+  ["Sri Lanka", 7.9, 80.8, 1, "asia", "SANITAS FORTE VET"],
+];
+
+const regionColors = {
+  africa:   { arc: "#ffaa3d", dot: "#ffaa3d", glow: "rgba(255,170,61,"   },
+  latam:    { arc: "#3dffa1", dot: "#3dffa1", glow: "rgba(61,255,161,"   },
+  asia:     { arc: "#3da1ff", dot: "#3da1ff", glow: "rgba(61,161,255,"   },
+  europe:   { arc: "#a13dff", dot: "#a13dff", glow: "rgba(161,61,255,"   },
+  mideast:  { arc: "#ff3d6b", dot: "#ff3d6b", glow: "rgba(255,61,107,"   },
+  oceania:  { arc: "#3dffff", dot: "#3dffff", glow: "rgba(61,255,255,"   },
+  namerica: { arc: "#cccccc", dot: "#cccccc", glow: "rgba(200,200,200,"  },
+};
+
+const regionNames = {
+  africa: "Africa", latam: "Latin America", asia: "Asia-Pacific",
+  europe: "Europe (non-EU)", mideast: "Middle East", oceania: "Oceania",
+  namerica: "North America"
+};
+
+const tagClasses = {
+  africa: "tag-africa", latam: "tag-latam", asia: "tag-asia",
+  europe: "tag-europe", mideast: "tag-mideast", oceania: "tag-oceania",
+  namerica: "tag-namerica"
+};
+
+const map = L.map('map', {
+  center: [18, 8], zoom: 2.5, minZoom: 2, maxZoom: 6,
+  zoomControl: false, attributionControl: false, worldCopyJump: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd', maxZoom: 19, opacity: 0.55,
+}).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd', maxZoom: 19, opacity: 0.25,
+}).addTo(map);
+
+// Spain origin
+const originIcon = L.divIcon({
+  className: '',
+  html: `<div style="position:relative;width:30px;height:30px;">
+    <div class="pulse-origin" style="position:absolute;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,rgba(255,107,61,0.9) 0%,rgba(255,61,61,0.3) 60%,transparent 70%);"></div>
+    <div style="position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 0 12px #ff6b3d,0 0 24px rgba(255,107,61,0.5);"></div>
+  </div>`,
+  iconSize: [30, 30], iconAnchor: [15, 15],
+});
+L.marker(SPAIN, { icon: originIcon }).addTo(map)
+  .bindTooltip(`<div class="tooltip-country">SPAIN</div><div style="color:#888;font-size:11px;">Origin · 1,072 export notifications (2026)</div>`, {
+    className: 'tooltip-custom', direction: 'top', offset: [0, -18],
+  });
+
+function createArc(start, end, numPoints = 50) {
+  const points = [];
+  const sLat = start[0]*Math.PI/180, sLng = start[1]*Math.PI/180;
+  const eLat = end[0]*Math.PI/180, eLng = end[1]*Math.PI/180;
+  for (let i = 0; i <= numPoints; i++) {
+    const f = i / numPoints;
+    const d = 2*Math.asin(Math.sqrt(Math.pow(Math.sin((eLat-sLat)/2),2)+Math.cos(sLat)*Math.cos(eLat)*Math.pow(Math.sin((eLng-sLng)/2),2)));
+    if (d === 0) continue;
+    const A = Math.sin((1-f)*d)/Math.sin(d), B = Math.sin(f*d)/Math.sin(d);
+    const x = A*Math.cos(sLat)*Math.cos(sLng)+B*Math.cos(eLat)*Math.cos(eLng);
+    const y = A*Math.cos(sLat)*Math.sin(sLng)+B*Math.cos(eLat)*Math.sin(eLng);
+    const z = A*Math.sin(sLat)+B*Math.sin(eLat);
+    let lat = Math.atan2(z,Math.sqrt(x*x+y*y))*180/Math.PI;
+    let lng = Math.atan2(y,x)*180/Math.PI;
+    lat += Math.sin(f*Math.PI)*(d*180/Math.PI)*0.08;
+    points.push([lat, lng]);
+  }
+  return points;
+}
+
+// Sort smallest first
+const sorted = [...destinations].sort((a, b) => a[3] - b[3]);
+
+sorted.forEach(([name, lat, lng, notif, region, products]) => {
+  const colors = regionColors[region];
+  const arcPoints = createArc(SPAIN, [lat, lng]);
+  let weight, opacity;
+  if (notif >= 30) { weight = 3.2; opacity = 0.85; }
+  else if (notif >= 15) { weight = 2.2; opacity = 0.65; }
+  else if (notif >= 5) { weight = 1.5; opacity = 0.45; }
+  else { weight = 0.8; opacity = 0.3; }
+
+  // Glow
+  L.polyline(arcPoints, { color: colors.arc, weight: weight+4, opacity: opacity*0.12, smoothFactor: 1, lineCap: 'round' }).addTo(map);
+  // Line
+  L.polyline(arcPoints, { color: colors.arc, weight, opacity, smoothFactor: 1, lineCap: 'round', dashArray: notif < 5 ? '3 5' : null }).addTo(map);
+
+  // Dot
+  const r = Math.max(2.5, Math.min(8, notif/5));
+  const dotIcon = L.divIcon({
+    className: '',
+    html: `<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${colors.dot};box-shadow:0 0 ${r+3}px ${colors.glow}0.5),0 0 ${r*2+6}px ${colors.glow}0.2);border:1px solid rgba(255,255,255,0.25);"></div>`,
+    iconSize: [r*2, r*2], iconAnchor: [r, r],
+  });
+
+  L.marker([lat, lng], { icon: dotIcon }).addTo(map)
+    .bindTooltip(`
+      <div class="tooltip-country">${name}</div>
+      <span class="region-tag ${tagClasses[region]}">${regionNames[region]}</span>
+      <div style="margin-top:6px;"><span class="tooltip-notif">${notif} export notification${notif > 1 ? 's' : ''}</span></div>
+      <div class="tooltip-products">Products: ${products}</div>
+    `, { className: 'tooltip-custom', direction: 'top', offset: [0, -r-4] });
+});
+
+// Vignette
+const v = document.createElement('div');
+v.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:999;background:radial-gradient(ellipse at center,transparent 50%,rgba(10,10,15,0.5) 100%);';
+document.body.appendChild(v);
+</script>
+</body>
+</html>
