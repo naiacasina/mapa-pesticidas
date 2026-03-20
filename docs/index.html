@@ -109,7 +109,7 @@
   <div class="explainer">
     <h4>Understanding the Map</h4>
     <p>
-      <strong>Green dots</strong> mark the origin country—the EU nation exporting pesticides. The <strong>pulsing effect</strong> highlights the origin point. Green <strong>arcs</strong> trace routes to destination countries, with line weight and opacity indicating export volume: <strong>thicker arcs</strong> mean more notifications, <strong>dashed lines</strong> indicate smaller volumes.
+      The <strong>green dot</strong> marks the origin country — the EU nation exporting pesticides. Green <strong>arcs</strong> trace routes to destination countries, with line weight and opacity indicating export volume: <strong>thicker arcs</strong> mean more notifications, <strong>dashed lines</strong> indicate smaller volumes.
     </p>
     <p>
       <strong>Destination dots</strong> are sized by the number of notifications received, and colored by region. Hover over any dot or arc to see detailed counts. Use the <strong>year dropdown or slider</strong> to explore how export patterns change over time. The <strong>timeline slider</strong> provides smooth year-by-year navigation.
@@ -189,7 +189,7 @@ function arc(s, e, n = 50) {
 }
 
 let currentYear = 2026;
-let currentCountry = null;
+let currentCountry = 'Spain';
 let map = null;
 let mapLayers = [];
 
@@ -220,6 +220,7 @@ function populateSelects() {
     yearSelect.appendChild(opt);
   }
   yearSelect.value = '2026';
+  countrySelect.value = currentCountry;
   countrySelect.addEventListener('change', (e) => {
     currentCountry = e.target.value || null;
     updateMap();
@@ -327,21 +328,152 @@ initMap();
 populateSelects();
 renderFindings();
 
-document.getElementById('downloadPng').addEventListener('click', () => {
-  const mapEl = document.getElementById('map');
-  if (typeof html2canvas !== 'undefined') {
-    html2canvas(mapEl, { useCORS: true, backgroundColor: '#1a1a2e' }).then(canvas => {
-      const link = document.createElement('a');
-      link.download = 'pesticide-exports-' + currentCountry.replace(/\s+/g, '-').toLowerCase() + '-' + currentYear + '.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    });
-  } else {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-    s.onload = () => document.getElementById('downloadPng').click();
-    document.head.appendChild(s);
+function exportMapPng() {
+  const mapContainer = document.getElementById('map-container');
+  const total = document.getElementById('mi-total').textContent;
+  const dests = document.getElementById('mi-dests').textContent;
+  const maxDest = document.getElementById('mi-max').textContent;
+  const leafletMap = map;
+  const size = leafletMap.getSize();
+  const canvas = document.createElement('canvas');
+  const W = Math.max(size.x + 280, 1200);
+  const H = Math.max(size.y + 100, 700);
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, H);
+  const tilePane = mapContainer.querySelector('.leaflet-tile-pane');
+  const markerPane = mapContainer.querySelector('.leaflet-overlay-pane');
+  const mapCanvas = document.createElement('canvas');
+  mapCanvas.width = size.x;
+  mapCanvas.height = size.y;
+  const mapCtx = mapCanvas.getContext('2d');
+  const tiles = tilePane ? tilePane.querySelectorAll('img') : [];
+  const tileTransform = tilePane ? getComputedStyle(tilePane).transform : 'none';
+  let tx = 0, ty = 0;
+  if (tileTransform && tileTransform !== 'none') {
+    const m = tileTransform.match(/matrix.*\\((.+)\\)/);
+    if (m) {
+      const vals = m[1].split(',').map(Number);
+      tx = vals[4] || 0;
+      ty = vals[5] || 0;
+    }
   }
+  const tilePromises = Array.from(tiles).map(img => {
+    return new Promise(resolve => {
+      if (img.complete && img.naturalWidth > 0) {
+        resolve(img);
+      } else {
+        const newImg = new Image();
+        newImg.crossOrigin = 'anonymous';
+        newImg.onload = () => resolve(newImg);
+        newImg.onerror = () => resolve(null);
+        newImg.src = img.src;
+      }
+    }).then(loadedImg => {
+      if (!loadedImg) return;
+      const style = img.style;
+      const imgLeft = parseInt(style.left || 0) + tx;
+      const imgTop = parseInt(style.top || 0) + ty;
+      const imgW = parseInt(style.width || img.width);
+      const imgH = parseInt(style.height || img.height);
+      try { mapCtx.drawImage(loadedImg, imgLeft, imgTop, imgW, imgH); } catch(e) {}
+    });
+  });
+  Promise.all(tilePromises).then(() => {
+    const svgEl = markerPane ? markerPane.querySelector('svg') : null;
+    if (svgEl) {
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      const svgImg = new Image();
+      svgImg.onload = () => {
+        const svgStyle = svgEl.style;
+        const svgLeft = parseInt(svgStyle.left || 0);
+        const svgTop = parseInt(svgStyle.top || 0);
+        mapCtx.drawImage(svgImg, svgLeft, svgTop);
+        URL.revokeObjectURL(url);
+        drawFinalPng(ctx, canvas, mapCanvas, W, H, total, dests, maxDest);
+      };
+      svgImg.onerror = () => {
+        drawFinalPng(ctx, canvas, mapCanvas, W, H, total, dests, maxDest);
+      };
+      svgImg.src = url;
+    } else {
+      drawFinalPng(ctx, canvas, mapCanvas, W, H, total, dests, maxDest);
+    }
+  });
+}
+
+function drawFinalPng(ctx, canvas, mapCanvas, W, H, total, dests, maxDest) {
+  const mapX = 0, mapY = 60;
+  ctx.drawImage(mapCanvas, mapX, mapY);
+  const panelX = mapCanvas.width + 20;
+  const panelW = W - panelX - 20;
+  ctx.fillStyle = '#f5f0e8';
+  ctx.font = 'bold 22px "DM Serif Display", Georgia, serif';
+  ctx.fillText('EU Pesticide Exports', 20, 36);
+  ctx.fillStyle = '#52b788';
+  ctx.font = '16px "DM Sans", sans-serif';
+  ctx.fillText(currentCountry + ' \u2014 ' + currentYear, 20, 55);
+  ctx.fillStyle = 'rgba(245,240,232,0.92)';
+  ctx.fillRect(panelX, mapY, panelW, H - mapY);
+  ctx.fillStyle = '#1a1714';
+  ctx.font = 'bold 14px "DM Sans", sans-serif';
+  ctx.fillText('Overview', panelX + 16, mapY + 30);
+  ctx.fillStyle = '#8a8378';
+  ctx.font = '12px "DM Sans", sans-serif';
+  ctx.fillText('Total notifications', panelX + 16, mapY + 56);
+  ctx.fillStyle = '#52b788';
+  ctx.font = 'bold 20px "JetBrains Mono", monospace';
+  ctx.fillText(total, panelX + 16, mapY + 80);
+  ctx.fillStyle = '#8a8378';
+  ctx.font = '12px "DM Sans", sans-serif';
+  ctx.fillText('Destinations', panelX + 16, mapY + 108);
+  ctx.fillStyle = '#52b788';
+  ctx.font = 'bold 20px "JetBrains Mono", monospace';
+  ctx.fillText(dests, panelX + 16, mapY + 132);
+  ctx.fillStyle = '#8a8378';
+  ctx.font = '12px "DM Sans", sans-serif';
+  ctx.fillText('Top destination', panelX + 16, mapY + 160);
+  ctx.fillStyle = '#c1121f';
+  ctx.font = 'bold 14px "DM Sans", sans-serif';
+  ctx.fillText(maxDest, panelX + 16, mapY + 180);
+  ctx.fillStyle = '#8a8378';
+  ctx.font = 'bold 12px "DM Sans", sans-serif';
+  ctx.fillText('Legend', panelX + 16, mapY + 220);
+  const legendItems = [
+    ['#52b788', 'Export origin'],
+    ['#d97706', 'Africa'],
+    ['#059669', 'Latin America'],
+    ['#2563eb', 'Asia-Pacific'],
+    ['#7c3aed', 'Europe (non-EU)'],
+    ['#dc2626', 'Middle East'],
+    ['#06b6d4', 'Oceania'],
+    ['#9ca3af', 'North America']
+  ];
+  legendItems.forEach(([color, label], i) => {
+    const y = mapY + 240 + i * 22;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(panelX + 24, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#4a4540';
+    ctx.font = '11px "DM Sans", sans-serif';
+    ctx.fillText(label, panelX + 36, y + 4);
+  });
+  ctx.fillStyle = '#b8b0a4';
+  ctx.font = '10px "DM Sans", sans-serif';
+  ctx.fillText('Data: ECHA PIC Database \u00b7 Pesticide Export Portal \u00b7 Naia Ormaza Zulueta', 20, H - 12);
+  const link = document.createElement('a');
+  link.download = 'pesticide-exports-' + currentCountry.replace(/\\s+/g, '-').toLowerCase() + '-' + currentYear + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+document.getElementById('downloadPng').addEventListener('click', () => {
+  exportMapPng();
 });
 
 document.getElementById('openEmbed').addEventListener('click', () => {
