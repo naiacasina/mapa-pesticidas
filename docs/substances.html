@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Substances - Pesticide Export Data Portal</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><em>Pesticide</em> Export Portal</div>
+  <a href="index.html">Map</a>
+  <a href="stats.html">Statistics</a>
+  <a href="substances.html" class="active">Substances</a>
+  <a href="countries.html">Countries</a>
+  <a href="destinations.html">Destinations</a>
+  <a href="about.html">About</a>
+</nav>
+
+<section style="margin-top:0;padding-top:60px;">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <h1 class="section-title">Search <em>pesticides</em></h1>
+    <div class="section-rule"></div>
+  </div>
+  <input type="text" class="search-input" id="substanceSearch" placeholder="Search by pesticide name...">
+  <div class="search-results" id="searchResults"></div>
+</section>
+
+<section id="routesSection" style="display:none;">
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <h2 class="section-title">Export <em>routes</em></h2>
+    <div class="section-rule"></div>
+  </div>
+  <div class="routes-control">
+    <label for="substanceRouteSelect">Select a pesticide to view all export routes</label>
+    <select id="substanceRouteSelect"></select>
+  </div>
+  <div id="routesMap" class="routes-map"></div>
+</section>
+
+<footer class="footer">
+  Data: ECHA PIC Database · Export date: 08/01/2026 · Built by Naia Ormaza Zulueta
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data-map.js"></script>
+<script src="data-site.js"></script>
+<script src="data-extra.js"></script>
+
+<script>
+const ORIGIN_COORDS = {
+  "Germany": [51.2, 10.5], "France": [46.6, 1.9], "Spain": [40.4, -3.7], "Belgium": [50.9, 4.4],
+  "Italy": [41.9, 12.6], "Netherlands": [52.1, 5.3], "United Kingdom": [55.4, -3.4], "Poland": [51.9, 19.1],
+  "Austria": [47.5, 14.6], "Sweden": [60.1, 18.6], "Denmark": [56.3, 9.5], "Bulgaria": [42.7, 25.5],
+  "Slovenia": [46.2, 15.0], "Hungary": [47.2, 19.5], "Portugal": [39.4, -8.2], "Finland": [61.9, 25.7],
+  "Czechia": [49.8, 15.5], "Ireland": [53.1, -7.7], "Croatia": [45.1, 15.2], "Greece": [39.1, 21.8],
+  "Romania": [45.9, 24.9], "Lithuania": [55.2, 23.9], "Estonia": [58.6, 25.0], "Latvia": [56.9, 24.6],
+  "Slovakia": [48.7, 19.7], "Cyprus": [35.1, 33.4], "Malta": [35.9, 14.4]
+};
+
+const RC = {
+  africa: { a: '#d97706', d: '#d97706', g: 'rgba(217,119,6,' },
+  latam: { a: '#059669', d: '#059669', g: 'rgba(5,150,105,' },
+  asia: { a: '#2563eb', d: '#2563eb', g: 'rgba(37,99,235,' },
+  europe: { a: '#7c3aed', d: '#7c3aed', g: 'rgba(124,58,237,' },
+  mideast: { a: '#dc2626', d: '#dc2626', g: 'rgba(220,38,38,' },
+  oceania: { a: '#06b6d4', d: '#06b6d4', g: 'rgba(6,182,212,' },
+  namerica: { a: '#9ca3af', d: '#9ca3af', g: 'rgba(156,163,175,' }
+};
+
+const RN = {
+  africa: 'Africa', latam: 'Latin America', asia: 'Asia-Pacific', europe: 'Europe (non-EU)',
+  mideast: 'Middle East', oceania: 'Oceania', namerica: 'North America'
+};
+
+const TC = {
+  africa: 'tag-africa', latam: 'tag-latam', asia: 'tag-asia', europe: 'tag-europe',
+  mideast: 'tag-mideast', oceania: 'tag-oceania', namerica: 'tag-namerica'
+};
+
+function arc(s, e, n = 50) {
+  const p = [];
+  const sLa = s[0] * Math.PI / 180, sLo = s[1] * Math.PI / 180;
+  const eLa = e[0] * Math.PI / 180, eLo = e[1] * Math.PI / 180;
+  for (let i = 0; i <= n; i++) {
+    const f = i / n;
+    const d = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin((eLa - sLa) / 2), 2) + Math.cos(sLa) * Math.cos(eLa) * Math.pow(Math.sin((eLo - sLo) / 2), 2)));
+    if (d === 0) continue;
+    const A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+    const x = A * Math.cos(sLa) * Math.cos(sLo) + B * Math.cos(eLa) * Math.cos(eLo);
+    const y = A * Math.cos(sLa) * Math.sin(sLo) + B * Math.cos(eLa) * Math.sin(eLo);
+    const z = A * Math.sin(sLa) + B * Math.sin(eLa);
+    let la = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+    let lo = Math.atan2(y, x) * 180 / Math.PI;
+    la += Math.sin(f * Math.PI) * (d * 180 / Math.PI) * 0.08;
+    p.push([la, lo]);
+  }
+  return p;
+}
+
+function destCoords(name) {
+  const idx = MD._n.indexOf(name);
+  return idx >= 0 ? MD._c[idx] : null;
+}
+
+function searchSubstances(query) {
+  const results = document.getElementById('searchResults');
+  results.innerHTML = '';
+  if (query.length < 2) return;
+
+  const matches = SD.subIndex.filter(([name, _]) => name.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
+  matches.forEach(([name, total]) => {
+    const card = document.createElement('div');
+    card.className = 'sub-card';
+    const sub = SD.substances[name];
+    const type = sub ? sub.tp : '';
+    const origins = sub ? sub.o.slice(0, 3) : [];
+    const dests = sub ? sub.d.slice(0, 3) : [];
+
+    let html = `<div class="sub-name" style="display:flex;align-items:center;">${name}`;
+    if (EX.banDates && EX.banDates[name]) {
+      const bd = EX.banDates[name];
+      if (bd.ban_year) html += ` <span class="ban-badge">Banned ${bd.ban_year}</span>`;
+    }
+    html += `</div>`;
+    html += `<div class="sub-meta"><span>${type}</span><span>${total} notifications</span></div>`;
+    html += `<div class="sub-detail"><div class="sub-detail-grid">`;
+    html += `<div class="sd-col"><h5>Exporting Countries</h5><ul class="sd-list">`;
+    origins.forEach(([c, cnt]) => html += `<li>${c}<span>${cnt}</span></li>`);
+    html += `</ul></div><div class="sd-col"><h5>Top Destinations</h5><ul class="sd-list">`;
+    dests.forEach(([d, cnt]) => html += `<li>${d}<span>${cnt}</span></li>`);
+    html += `</ul></div></div>`;
+    html += `<div class="sub-links">`;
+    html += `<a href="https://chem.echa.europa.eu/substance-search?searchText=${encodeURIComponent(name)}" target="_blank">ECHA</a>`;
+    html += `<a href="https://pubchem.ncbi.nlm.nih.gov/#query=${encodeURIComponent(name)}" target="_blank">PubChem</a>`;
+    html += `<a href="https://en.wikipedia.org/wiki/${encodeURIComponent(name.replace(/ /g,'_'))}" target="_blank">Wikipedia</a>`;
+    html += `</div></div>`;
+    card.innerHTML = html;
+    card.addEventListener('click', () => {
+      const detail = card.querySelector('.sub-detail');
+      detail.classList.toggle('open');
+    });
+    results.appendChild(card);
+  });
+}
+
+let routesMap = null;
+
+function initRoutesMap() {
+  if (routesMap) return;
+  routesMap = L.map('routesMap').setView([25, 10], 2);
+  const osmUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
+  L.tileLayer(osmUrl, { attribution: '', maxZoom: 18 }).addTo(routesMap);
+}
+
+function renderRoutesOnMap(substance) {
+  if (!routesMap) initRoutesMap();
+  routesMap.eachLayer(layer => {
+    if (layer instanceof L.CircleMarker || layer instanceof L.Polyline) routesMap.removeLayer(layer);
+  });
+
+  if (!EX.routes || !EX.routes[substance]) return;
+
+  const routes = EX.routes[substance].r;
+  const origins = new Map();
+  routes.forEach(([origin, dest, count]) => {
+    if (!origins.has(origin)) origins.set(origin, []);
+    origins.get(origin).push([dest, count]);
+  });
+
+  origins.forEach((dests, origin) => {
+    const originCoords = ORIGIN_COORDS[origin];
+    if (!originCoords) return;
+
+    const pulseIcon = L.divIcon({ className: '', html: '<div class="pulse-ring"></div>', iconSize: [0, 0], iconAnchor: [0, 0] });
+    L.marker(originCoords, { icon: pulseIcon, interactive: false }).addTo(routesMap);
+    L.circleMarker(originCoords, {
+      radius: 8,
+      fillColor: '#52b788',
+      fillOpacity: 1,
+      color: '#fff',
+      weight: 2
+    }).addTo(routesMap).bindTooltip(`<div class="tooltip-custom"><div class="tt-c">${origin}</div><div class="tt-n">Origin</div></div>`, { permanent: false });
+
+    dests.forEach(([dest, count]) => {
+      const destCoord = destCoords(dest);
+      if (!destCoord) return;
+
+      const destRegion = MD._r[MD._n.indexOf(dest)];
+      const arcPath = arc(originCoords, destCoord);
+      const weight = count >= 30 ? 3 : count >= 15 ? 2 : 1;
+      const opacity = count >= 30 ? 0.8 : count >= 15 ? 0.5 : count >= 5 ? 0.3 : 0.2;
+      const color = RC[destRegion]?.a || '#52b788';
+      const polyline = L.polyline(arcPath, { color, weight, opacity }).addTo(routesMap);
+
+      const radius = Math.sqrt(count) * 1.5;
+      L.circleMarker(destCoord, {
+        radius: radius,
+        fillColor: color,
+        fillOpacity: 0.7,
+        color: '#fff',
+        weight: 1.5
+      }).addTo(routesMap).bindTooltip(`<div class="tooltip-custom"><div class="tt-c">${dest}</div><div class="tt-n">${count} notifications</div></div>`, { permanent: false });
+    });
+  });
+}
+
+document.getElementById('substanceSearch').addEventListener('input', (e) => {
+  searchSubstances(e.target.value);
+});
+
+const substanceRouteSelect = document.getElementById('substanceRouteSelect');
+SD.subIndex.slice(0, 100).forEach(([name, _]) => {
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name;
+  substanceRouteSelect.appendChild(opt);
+});
+substanceRouteSelect.addEventListener('change', (e) => {
+  if (e.target.value) {
+    document.getElementById('routesSection').style.display = 'block';
+    initRoutesMap();
+    renderRoutesOnMap(e.target.value);
+  }
+});
+</script>
+
+</body>
+</html>

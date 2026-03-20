@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Statistics - Pesticide Export Data Portal</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><em>Pesticide</em> Export Portal</div>
+  <a href="index.html">Map</a>
+  <a href="stats.html" class="active">Statistics</a>
+  <a href="substances.html">Substances</a>
+  <a href="countries.html">Countries</a>
+  <a href="destinations.html">Destinations</a>
+  <a href="about.html">About</a>
+</nav>
+
+<section id="statsHero" style="margin-top:0;padding-top:60px;">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <h1 class="section-title">Pesticide export <em>statistics</em></h1>
+    <div class="section-rule"></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <h2 class="section-title">Yearly <em>trend</em></h2>
+    <div class="section-rule"></div>
+  </div>
+  <div class="chart-card full-width">
+    <h4>Total Notifications by Year</h4>
+    <canvas id="yearlyChart"></canvas>
+  </div>
+  <div class="callout">
+    <strong>2026 Data Note:</strong> This year's data is partial and includes notifications through August 1st.
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <div class="section-num">03</div>
+    <h2 class="section-title">Top <em>exporters</em></h2>
+    <div class="section-rule"></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h4>Top 10 Exporting Countries</h4>
+      <canvas id="exportersChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>Top 10 Importing Destinations</h4>
+      <canvas id="destinationsChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <div class="section-num">04</div>
+    <h2 class="section-title">Top <em>substances</em></h2>
+    <div class="section-rule"></div>
+  </div>
+  <div class="chart-card full-width">
+    <h4>Most Exported Pesticides</h4>
+    <canvas id="substancesChart"></canvas>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <div class="section-num">05</div>
+    <h2 class="section-title">Country <em>trends</em></h2>
+    <div class="section-rule"></div>
+  </div>
+  <div class="chart-card full-width">
+    <h4>Yearly Exports for Top 10 Countries</h4>
+    <canvas id="trendsChart"></canvas>
+  </div>
+</section>
+
+<footer class="footer">
+  Data: ECHA PIC Database · Export date: 08/01/2026 · Built by Naia Ormaza Zulueta
+</footer>
+
+<script src="data-site.js"></script>
+
+<script>
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: true,
+  plugins: {
+    legend: {
+      labels: {
+        font: { family: 'DM Sans, sans-serif', size: 12 },
+        color: '#1a1714',
+        usePointStyle: true,
+        padding: 16
+      }
+    }
+  },
+  scales: {
+    x: {
+      ticks: { font: { family: 'DM Sans, sans-serif', size: 11 }, color: '#8a8378' },
+      grid: { color: 'rgba(26,23,20,0.05)' }
+    },
+    y: {
+      ticks: { font: { family: 'DM Sans, sans-serif', size: 11 }, color: '#8a8378' },
+      grid: { color: 'rgba(26,23,20,0.05)' }
+    }
+  }
+};
+
+function initYearlyChart() {
+  const ctx = document.getElementById('yearlyChart').getContext('2d');
+  const labels = Object.keys(SD.stats.yearly).sort((a, b) => a - b);
+  const data = labels.map(y => SD.stats.yearly[y]);
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Notifications',
+        data: data,
+        backgroundColor: '#52b788',
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: { ...chartOptions, indexAxis: undefined }
+  });
+}
+
+function initExportersChart() {
+  const ctx = document.getElementById('exportersChart').getContext('2d');
+  const labels = SD.stats.topExporters.slice(0, 10).map(d => d[0]);
+  const data = SD.stats.topExporters.slice(0, 10).map(d => d[1]);
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Notifications',
+        data: data,
+        backgroundColor: '#52b788',
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: { ...chartOptions, indexAxis: 'y' }
+  });
+}
+
+function initDestinationsChart() {
+  const ctx = document.getElementById('destinationsChart').getContext('2d');
+  const labels = SD.stats.topDestinations.slice(0, 10).map(d => d[0]);
+  const data = SD.stats.topDestinations.slice(0, 10).map(d => d[1]);
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Notifications',
+        data: data,
+        backgroundColor: '#c1121f',
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: { ...chartOptions, indexAxis: 'y' }
+  });
+}
+
+function initSubstancesChart() {
+  const ctx = document.getElementById('substancesChart').getContext('2d');
+  const labels = SD.stats.topSubstances.slice(0, 15).map(d => d[0]);
+  const data = SD.stats.topSubstances.slice(0, 15).map(d => d[1]);
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Notifications',
+        data: data,
+        backgroundColor: '#2563eb',
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: { ...chartOptions, indexAxis: 'y' }
+  });
+}
+
+function initTrendsChart() {
+  const ctx = document.getElementById('trendsChart').getContext('2d');
+  const countries = Object.keys(SD.stats.originYearly).slice(0, 10);
+  const allYears = new Set();
+  countries.forEach(c => {
+    Object.keys(SD.stats.originYearly[c]).forEach(y => allYears.add(parseInt(y)));
+  });
+  const sortedYears = Array.from(allYears).sort((a, b) => a - b);
+  const colors = ['#52b788', '#40916c', '#2d6a4f', '#059669', '#c1121f', '#2563eb', '#7c3aed', '#dc2626', '#06b6d4', '#d97706'];
+  const datasets = countries.map((c, idx) => ({
+    label: c,
+    data: sortedYears.map(y => SD.stats.originYearly[c][y] || 0),
+    borderColor: colors[idx % colors.length],
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    tension: 0.3,
+    fill: false
+  }));
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels: sortedYears, datasets: datasets },
+    options: { ...chartOptions, indexAxis: undefined }
+  });
+}
+
+initYearlyChart();
+initExportersChart();
+initDestinationsChart();
+initSubstancesChart();
+initTrendsChart();
+</script>
+
+</body>
+</html>

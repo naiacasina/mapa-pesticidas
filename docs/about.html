@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About the Data - Pesticide Export Data Portal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><em>Pesticide</em> Export Portal</div>
+  <a href="index.html">Map</a>
+  <a href="stats.html">Statistics</a>
+  <a href="substances.html">Substances</a>
+  <a href="countries.html">Countries</a>
+  <a href="destinations.html">Destinations</a>
+  <a href="about.html" class="active">About</a>
+</nav>
+
+<section style="margin-top:0;padding-top:60px;">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <h1 class="section-title">About <em>the data</em></h1>
+    <div class="section-rule"></div>
+  </div>
+
+  <div class="about-content">
+    <div class="about-block">
+      <h3>What is the PIC regulation?</h3>
+      <p>The EU's Prior Informed Consent (PIC) Regulation (No. 649/2012) implements the Rotterdam Convention within Europe. It requires that any export of certain hazardous chemicals&mdash;including pesticides banned or severely restricted within the EU&mdash;be formally notified to the importing country before shipment.</p>
+      <p>These notifications are managed by the European Chemicals Agency (ECHA), which publishes them through the <a href="https://echa.europa.eu/information-on-chemicals/pic/export-notifications" target="_blank">PIC export notifications database</a>.</p>
+    </div>
+
+    <div class="about-block">
+      <h3>What does a "notification" mean?</h3>
+      <p>Each record in this portal represents one export notification&mdash;a formal declaration that a shipment of a banned or restricted chemical is being exported from an EU country. A single notification does not correspond to a fixed quantity: it could be a few kilograms of a laboratory chemical or hundreds of tonnes of an industrial pesticide.</p>
+      <p>This means the notification count is a proxy for export <strong>frequency</strong>, not export <strong>volume</strong>. A country with 500 notifications may have shipped less total product than one with 50 notifications of a bulk commodity.</p>
+    </div>
+
+    <div class="about-block about-callout">
+      <h3>What this data does not tell us</h3>
+      <ul>
+        <li><strong>Quantities</strong> &mdash; The PIC database does not publish the weight or volume of each shipment. We know that an export happened, not how much was shipped.</li>
+        <li><strong>Final use</strong> &mdash; Notifications track the exporting and importing country, but not whether the substance was used for agriculture, manufacturing, or re-export.</li>
+        <li><strong>Compliance</strong> &mdash; A notification means the export was declared. It does not mean the importing country consented, nor that the substance was safely handled on arrival.</li>
+        <li><strong>Non-EU exports</strong> &mdash; Only EU member states are covered. Exports of the same substances from the US, China, India, or other major producers are not captured here.</li>
+        <li><strong>Illegal trade</strong> &mdash; By definition, this dataset only includes legal, notified exports. Unregistered or smuggled pesticide shipments are invisible.</li>
+      </ul>
+    </div>
+
+    <div class="about-block">
+      <h3>Data source and processing</h3>
+      <p>All data was downloaded from the <a href="https://echa.europa.eu/information-on-chemicals/pic/export-notifications" target="_blank">ECHA PIC export notifications database</a> on 8 January 2026. The raw dataset contains <strong>134,220 individual export notifications</strong> spanning from 2003 to 2026.</p>
+      <p>For the interactive maps and visualizations, we use data from <strong>2016 onwards</strong> (approximately 88,000 notifications) to focus on the most recent and complete reporting period. The portal covers <strong>27 EU exporting countries</strong> and <strong>184 destination countries and territories</strong>.</p>
+    </div>
+
+    <div class="about-block">
+      <h3>Why does this matter?</h3>
+      <p>Many of the substances tracked here are banned or restricted in the EU because they pose unacceptable risks to human health or the environment. Yet European companies continue to manufacture and export these same chemicals to countries&mdash;often in the Global South&mdash;that may lack the regulatory capacity or infrastructure to manage them safely.</p>
+      <p>Critics call this a double standard: protecting European citizens while exporting the risk to populations with less regulatory power. A growing number of voices in civil society, the European Parliament, and some member states have called for an outright ban on the export of EU-banned pesticides.</p>
+    </div>
+
+    <div class="about-block">
+      <h3>Methodology notes</h3>
+      <ul>
+        <li><strong>Country names</strong> are as recorded by ECHA and may differ slightly from common usage (e.g., "Korea, Republic of" instead of "South Korea", "T&uuml;rkiye" instead of "Turkey").</li>
+        <li><strong>Substance names</strong> follow ECHA nomenclature, which sometimes groups formulations under trade names or chemical mixture identifiers rather than a single active ingredient.</li>
+        <li><strong>Region classification</strong> (Africa, Latin America, Asia-Pacific, etc.) was applied by the portal authors for visualization purposes and does not reflect any official ECHA categorization.</li>
+        <li><strong>Ban dates</strong> shown for selected substances are based on EU regulatory records and indicate the year the substance was banned or severely restricted under EU law. This does not always mean the substance was immediately removed from the market.</li>
+        <li><strong>"United Kingdom"</strong> appears as an exporting country for notifications filed before Brexit (31 January 2020). Post-Brexit UK notifications are not included.</li>
+      </ul>
+    </div>
+
+    <div class="about-block">
+      <h3>Further reading</h3>
+      <ul>
+        <li><a href="https://echa.europa.eu/information-on-chemicals/pic/export-notifications" target="_blank">ECHA PIC Export Notifications Database</a></li>
+        <li><a href="https://www.pan-europe.info/" target="_blank">Pesticide Action Network Europe</a></li>
+        <li><a href="https://www.publiceye.ch/en/topics/pesticides/banned-in-europe" target="_blank">Public Eye &mdash; Banned in Europe</a></li>
+        <li><a href="https://www.fao.org/pest-and-pesticide-management/pesticide-risk-reduction/rotterdam-convention/en/" target="_blank">FAO &mdash; Rotterdam Convention</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <h2 class="section-title">Credits &amp; <em>contact</em></h2>
+    <div class="section-rule"></div>
+  </div>
+  <div class="about-content">
+    <div class="about-block">
+      <p>This portal was built by <strong>Naia Ormaza Zulueta</strong> as a data journalism project. The visualizations are open source and the underlying data is publicly available from ECHA.</p>
+      <p>If you have questions about the data, spot an error, or would like to collaborate on a story, please get in touch.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  Data: ECHA PIC Database &middot; Export date: 08/01/2026 &middot; Built by Naia Ormaza Zulueta
+</footer>
+
+</body>
+</html>

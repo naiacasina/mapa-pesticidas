@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pesticide Export Data Portal</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><em>Pesticide</em> Export Portal</div>
+  <a href="index.html" class="active">Map</a>
+  <a href="stats.html">Statistics</a>
+  <a href="substances.html">Substances</a>
+  <a href="countries.html">Countries</a>
+  <a href="destinations.html">Destinations</a>
+  <a href="about.html">About</a>
+</nav>
+
+<div id="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div>
+        <h1 class="hero-headline">Track <em>pesticide exports</em> from EU countries</h1>
+        <p class="hero-sub">Interactive map of all notifications since 2016</p>
+      </div>
+      <div class="hero-selectors">
+        <div class="sel-dark">
+          <label for="countrySelect">Origin Country</label>
+          <select id="countrySelect"></select>
+        </div>
+        <div class="sel-dark">
+          <label for="yearSelect">Year</label>
+          <select id="yearSelect"></select>
+        </div>
+      </div>
+    </div>
+    <div id="map-container">
+      <div id="map"></div>
+      <div class="map-info">
+        <h3>Overview</h3>
+        <div class="mi-row">
+          <span class="mi-l">Total notifications</span>
+          <span class="mi-v" id="mi-total">—</span>
+        </div>
+        <div class="mi-row">
+          <span class="mi-l">Destinations</span>
+          <span class="mi-v" id="mi-dests">—</span>
+        </div>
+        <div class="mi-row">
+          <span class="mi-l">Max destination</span>
+          <span class="mi-v hl" id="mi-max">—</span>
+        </div>
+        <p class="mi-note">Use the year slider below or dropdown above to explore different years</p>
+      </div>
+      <div class="map-legend">
+        <h4>Legend</h4>
+        <div class="lg-item">
+          <div class="lg-line" style="background:rgba(82,183,136,1);"></div>
+          <span>Export origin</span>
+        </div>
+        <div class="lg-item">
+          <div class="lg-line" style="background:rgba(82,183,136,0.5);"></div>
+          <span>Export route (size = count)</span>
+        </div>
+        <div class="lg-item">
+          <div class="lg-line" style="background:rgba(82,183,136,0.2);"></div>
+          <span>Destination (size = count)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="timeline-section">
+    <div class="timeline-inner">
+      <label class="timeline-label">Year</label>
+      <div class="timeline-slider-wrapper">
+        <input type="range" id="yearSlider" min="2016" max="2026" value="2026" step="1">
+        <span class="timeline-year" id="sliderYear">2026</span>
+      </div>
+    </div>
+  </div>
+  <div class="map-toolbar" style="padding:0 40px;margin-top:8px;">
+    <button class="toolbar-btn" id="downloadPng" title="Save map as PNG image">&#x1f4f7; Download PNG</button>
+    <button class="toolbar-btn" id="openEmbed" title="Get embed code for your website">&#x2699; Embed</button>
+    <button class="toolbar-btn" id="shareLink" title="Copy shareable link">&#x1f517; Share Link</button>
+  </div>
+</div>
+
+<div class="embed-modal" id="embedModal">
+  <div class="embed-box">
+    <h3>Embed this map</h3>
+    <p>Copy the iframe code below to embed this visualization in your website or article.</p>
+    <textarea id="embedCode" readonly></textarea>
+    <div class="embed-actions">
+      <button class="embed-close-btn" id="embedClose">Close</button>
+      <button class="embed-copy-btn" id="embedCopy">Copy code</button>
+    </div>
+  </div>
+</div>
+
+<section id="explainerSection">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <h2 class="section-title">How to <em>read this</em></h2>
+    <div class="section-rule"></div>
+  </div>
+  <div class="explainer">
+    <h4>Understanding the Map</h4>
+    <p>
+      <strong>Green dots</strong> mark the origin country—the EU nation exporting pesticides. The <strong>pulsing effect</strong> highlights the origin point. Green <strong>arcs</strong> trace routes to destination countries, with line weight and opacity indicating export volume: <strong>thicker arcs</strong> mean more notifications, <strong>dashed lines</strong> indicate smaller volumes.
+    </p>
+    <p>
+      <strong>Destination dots</strong> are sized by the number of notifications received, and colored by region. Hover over any dot or arc to see detailed counts. Use the <strong>year dropdown or slider</strong> to explore how export patterns change over time. The <strong>timeline slider</strong> provides smooth year-by-year navigation.
+    </p>
+    <p>
+      Each <strong>notification</strong> represents one record of a pesticide export from an EU country to a non-EU destination. Data comes from the ECHA PIC database, covering all pesticide exports since 2016.
+    </p>
+  </div>
+</section>
+
+<section id="findingsSection">
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <h2 class="section-title">Key <em>findings</em></h2>
+    <div class="section-rule"></div>
+  </div>
+  <div id="findingsContainer" class="findings-grid"></div>
+</section>
+
+<footer class="footer">
+  Data: ECHA PIC Database · Export date: 08/01/2026 · Built by Naia Ormaza Zulueta
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data-map.js"></script>
+<script src="data-site.js"></script>
+
+<script>
+const RC = {
+  africa: { a: '#d97706', d: '#d97706', g: 'rgba(217,119,6,' },
+  latam: { a: '#059669', d: '#059669', g: 'rgba(5,150,105,' },
+  asia: { a: '#2563eb', d: '#2563eb', g: 'rgba(37,99,235,' },
+  europe: { a: '#7c3aed', d: '#7c3aed', g: 'rgba(124,58,237,' },
+  mideast: { a: '#dc2626', d: '#dc2626', g: 'rgba(220,38,38,' },
+  oceania: { a: '#06b6d4', d: '#06b6d4', g: 'rgba(6,182,212,' },
+  namerica: { a: '#9ca3af', d: '#9ca3af', g: 'rgba(156,163,175,' }
+};
+
+const RN = {
+  africa: 'Africa',
+  latam: 'Latin America',
+  asia: 'Asia-Pacific',
+  europe: 'Europe (non-EU)',
+  mideast: 'Middle East',
+  oceania: 'Oceania',
+  namerica: 'North America'
+};
+
+const TC = {
+  africa: 'tag-africa',
+  latam: 'tag-latam',
+  asia: 'tag-asia',
+  europe: 'tag-europe',
+  mideast: 'tag-mideast',
+  oceania: 'tag-oceania',
+  namerica: 'tag-namerica'
+};
+
+function arc(s, e, n = 50) {
+  const p = [];
+  const sLa = s[0] * Math.PI / 180, sLo = s[1] * Math.PI / 180;
+  const eLa = e[0] * Math.PI / 180, eLo = e[1] * Math.PI / 180;
+  for (let i = 0; i <= n; i++) {
+    const f = i / n;
+    const d = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin((eLa - sLa) / 2), 2) + Math.cos(sLa) * Math.cos(eLa) * Math.pow(Math.sin((eLo - sLo) / 2), 2)));
+    if (d === 0) continue;
+    const A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+    const x = A * Math.cos(sLa) * Math.cos(sLo) + B * Math.cos(eLa) * Math.cos(eLo);
+    const y = A * Math.cos(sLa) * Math.sin(sLo) + B * Math.cos(eLa) * Math.sin(eLo);
+    const z = A * Math.sin(sLa) + B * Math.sin(eLa);
+    let la = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+    let lo = Math.atan2(y, x) * 180 / Math.PI;
+    la += Math.sin(f * Math.PI) * (d * 180 / Math.PI) * 0.08;
+    p.push([la, lo]);
+  }
+  return p;
+}
+
+let currentYear = 2026;
+let currentCountry = null;
+let map = null;
+let mapLayers = [];
+
+function initMap() {
+  map = L.map('map').setView([25, 10], 2);
+  const osmUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
+  L.tileLayer(osmUrl, { attribution: '', maxZoom: 18 }).addTo(map);
+}
+
+function getOriginCountries() {
+  return Object.keys(MD).filter(k => !k.startsWith('_'));
+}
+
+function populateSelects() {
+  const countrySelect = document.getElementById('countrySelect');
+  const yearSelect = document.getElementById('yearSelect');
+  const origins = getOriginCountries();
+  origins.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    countrySelect.appendChild(opt);
+  });
+  for (let y = 2016; y <= 2026; y++) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    yearSelect.appendChild(opt);
+  }
+  yearSelect.value = '2026';
+  countrySelect.addEventListener('change', (e) => {
+    currentCountry = e.target.value || null;
+    updateMap();
+  });
+  yearSelect.addEventListener('change', (e) => {
+    currentYear = parseInt(e.target.value);
+    document.getElementById('yearSlider').value = currentYear;
+    document.getElementById('sliderYear').textContent = currentYear;
+    updateMap();
+  });
+}
+
+function updateMap() {
+  mapLayers.forEach(l => map.removeLayer(l));
+  mapLayers = [];
+
+  if (!currentCountry) return;
+
+  const originData = MD[currentCountry];
+  if (!originData) return;
+
+  const [originLat, originLng] = originData[0];
+  const yearsObj = originData[1];
+  const yearData = yearsObj[currentYear];
+
+  if (!yearData) {
+    document.getElementById('mi-total').textContent = '0';
+    document.getElementById('mi-dests').textContent = '0';
+    document.getElementById('mi-max').textContent = '—';
+    return;
+  }
+
+  const [total, destCount, routes, regionCounts] = yearData;
+
+  const pulseIcon = L.divIcon({ className: '', html: '<div class="pulse-ring"></div>', iconSize: [0, 0], iconAnchor: [0, 0] });
+  const pulseMarker = L.marker([originLat, originLng], { icon: pulseIcon, interactive: false }).addTo(map);
+  mapLayers.push(pulseMarker);
+  const originMarker = L.circleMarker([originLat, originLng], {
+    radius: 8,
+    fillColor: '#52b788',
+    fillOpacity: 1,
+    color: '#fff',
+    weight: 2
+  }).addTo(map).bindTooltip(`<div class="tooltip-custom"><div class="tt-c">${currentCountry}</div><div class="tt-n">Origin</div></div>`, { permanent: false });
+  mapLayers.push(originMarker);
+
+  let maxDest = null, maxCount = 0;
+  routes.forEach(([destIdx, count]) => {
+    const destName = MD._n[destIdx];
+    const destCoords = MD._c[destIdx];
+    const destRegion = MD._r[destIdx];
+
+    if (count > maxCount) {
+      maxCount = count;
+      maxDest = destName;
+    }
+
+    const arcPath = arc([originLat, originLng], destCoords);
+    const weight = count >= 30 ? 3 : count >= 15 ? 2 : 1;
+    const opacity = count >= 30 ? 0.8 : count >= 15 ? 0.5 : count >= 5 ? 0.3 : 0.2;
+    const dashArray = count < 5 ? '4,3' : 'none';
+    const color = RC[destRegion]?.a || '#52b788';
+
+    const polyline = L.polyline(arcPath, { color, weight, opacity, dashArray }).addTo(map);
+    mapLayers.push(polyline);
+
+    const radius = Math.sqrt(count) * 1.5;
+    const destMarker = L.circleMarker(destCoords, {
+      radius: radius,
+      fillColor: color,
+      fillOpacity: 0.7,
+      color: '#fff',
+      weight: 1.5
+    }).addTo(map);
+    const tagClass = TC[destRegion] || '';
+    destMarker.bindTooltip(`<div class="tooltip-custom"><div class="tt-c">${destName}</div><div class="tt-n">${destCount > 0 ? 'Destination' : ''}</div><span class="region-tag ${tagClass}">${RN[destRegion] || destRegion}</span><div style="margin-top:6px;color:var(--toxic-bright);">${count} notifications</div></div>`, { permanent: false });
+    mapLayers.push(destMarker);
+  });
+
+  document.getElementById('mi-total').textContent = total.toLocaleString();
+  document.getElementById('mi-dests').textContent = destCount;
+  document.getElementById('mi-max').textContent = maxDest || '—';
+}
+
+document.getElementById('yearSlider').addEventListener('input', (e) => {
+  currentYear = parseInt(e.target.value);
+  document.getElementById('yearSelect').value = currentYear;
+  document.getElementById('sliderYear').textContent = currentYear;
+  updateMap();
+});
+
+function renderFindings() {
+  const container = document.getElementById('findingsContainer');
+  if (SD.findings && Array.isArray(SD.findings)) {
+    SD.findings.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'finding-card';
+      card.innerHTML = `<div class="finding-num">${f.num}</div><div class="finding-text">${f.text}</div><div class="finding-detail">${f.detail}</div>`;
+      container.appendChild(card);
+    });
+  }
+}
+
+initMap();
+populateSelects();
+renderFindings();
+
+document.getElementById('downloadPng').addEventListener('click', () => {
+  const mapEl = document.getElementById('map');
+  if (typeof html2canvas !== 'undefined') {
+    html2canvas(mapEl, { useCORS: true, backgroundColor: '#1a1a2e' }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'pesticide-exports-' + currentCountry.replace(/\s+/g, '-').toLowerCase() + '-' + currentYear + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload = () => document.getElementById('downloadPng').click();
+    document.head.appendChild(s);
+  }
+});
+
+document.getElementById('openEmbed').addEventListener('click', () => {
+  const baseUrl = window.location.href.split('?')[0];
+  const code = '<iframe src="' + baseUrl + '?country=' + encodeURIComponent(currentCountry) + '&year=' + currentYear + '" width="100%" height="700" frameborder="0" style="border:1px solid #ddd;border-radius:8px;" title="EU Pesticide Exports Map"></iframe>';
+  document.getElementById('embedCode').value = code;
+  document.getElementById('embedModal').classList.add('open');
+});
+
+document.getElementById('embedClose').addEventListener('click', () => {
+  document.getElementById('embedModal').classList.remove('open');
+});
+
+document.getElementById('embedModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('embedCopy').addEventListener('click', () => {
+  const ta = document.getElementById('embedCode');
+  ta.select();
+  document.execCommand('copy');
+  const btn = document.getElementById('embedCopy');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy code', 2000);
+});
+
+document.getElementById('shareLink').addEventListener('click', () => {
+  const baseUrl = window.location.href.split('?')[0];
+  const shareUrl = baseUrl + '?country=' + encodeURIComponent(currentCountry) + '&year=' + currentYear;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    const btn = document.getElementById('shareLink');
+    btn.innerHTML = '&#x2714; Copied!';
+    setTimeout(() => btn.innerHTML = '&#x1f517; Share Link', 2000);
+  });
+});
+
+(function readUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('country')) {
+    const c = params.get('country');
+    if (MD[c]) {
+      currentCountry = c;
+      document.getElementById('countrySelect').value = c;
+    }
+  }
+  if (params.has('year')) {
+    const y = parseInt(params.get('year'));
+    if (y >= 2016 && y <= 2026) {
+      currentYear = y;
+      document.getElementById('yearSelect').value = y;
+      document.getElementById('yearSlider').value = y;
+      document.getElementById('sliderYear').textContent = y;
+    }
+  }
+  updateMap();
+})();
+</script>
+
+</body>
+</html>

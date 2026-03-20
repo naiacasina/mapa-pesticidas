@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Country Profiles - Pesticide Export Data Portal</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><em>Pesticide</em> Export Portal</div>
+  <a href="index.html">Map</a>
+  <a href="stats.html">Statistics</a>
+  <a href="substances.html">Substances</a>
+  <a href="countries.html" class="active">Countries</a>
+  <a href="destinations.html">Destinations</a>
+  <a href="about.html">About</a>
+</nav>
+
+<section style="margin-top:0;padding-top:60px;">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <h1 class="section-title">Country <em>profiles</em></h1>
+    <div class="section-rule"></div>
+  </div>
+  <div class="profile-container">
+    <div class="country-list" id="countryList"></div>
+    <div class="profile-detail" id="profileDetail">
+      <p style="color:var(--ink-muted);">Select a country to view details</p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  Data: ECHA PIC Database · Export date: 08/01/2026 · Built by Naia Ormaza Zulueta
+</footer>
+
+<script src="data-site.js"></script>
+<script src="data-map.js"></script>
+
+<script>
+function downloadCSV(country) {
+  const p = SD.profiles[country];
+  if (!p) return;
+  let csv = 'Type,Country,Substance,Notifications\n';
+  if (p.exp.t > 0) {
+    p.exp.d.forEach(([d, n]) => { csv += 'Export destination,"' + d + '",,' + n + '\n'; });
+    csv += '\n';
+    p.exp.s.forEach(([s, n]) => { csv += 'Exported substance,,"' + s + '",' + n + '\n'; });
+  }
+  if (p.rec.t > 0) {
+    csv += '\n';
+    p.rec.o.forEach(([o, n]) => { csv += 'Received from,"' + o + '",,' + n + '\n'; });
+    csv += '\n';
+    p.rec.s.forEach(([s, n]) => { csv += 'Received substance,,"' + s + '",' + n + '\n'; });
+  }
+  csv += '\nYear,Exported,Received\n';
+  const allY = [...new Set([...Object.keys(p.exp.y), ...Object.keys(p.rec.y)])].sort();
+  allY.forEach(y => { csv += y + ',' + (p.exp.y[y] || 0) + ',' + (p.rec.y[y] || 0) + '\n'; });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = country.toLowerCase().replace(/\s+/g, '-') + '-pesticide-data.csv';
+  a.click();
+}
+
+function renderCountryList() {
+  const list = document.getElementById('countryList');
+  const countries = Object.keys(SD.profiles).sort();
+  countries.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'country-list-item';
+    const p = SD.profiles[c];
+    const total = (p.exp.t || 0) + (p.rec.t || 0);
+    item.innerHTML = `<span>${c}</span><span class="cl-count">${total}</span>`;
+    item.addEventListener('click', () => selectCountry(c, item));
+    list.appendChild(item);
+  });
+}
+
+function selectCountry(country, item) {
+  document.querySelectorAll('.country-list-item').forEach(i => i.classList.remove('active'));
+  item.classList.add('active');
+  renderCountryProfile(country);
+}
+
+function renderCountryProfile(country) {
+  const detail = document.getElementById('profileDetail');
+  const p = SD.profiles[country];
+
+  let html = `<h3>${country}</h3>`;
+  html += `<div class="profile-grid">`;
+
+  if (p.exp.t > 0) {
+    html += `<div class="pg-card">`;
+    html += `<h5>Exporting Destinations (Top 5)</h5>`;
+    const max = Math.max(...p.exp.d.map(d => d[1]));
+    p.exp.d.slice(0, 5).forEach(([dest, cnt]) => {
+      const pct = (cnt / max) * 100;
+      html += `<div class="pg-bar"><span class="pg-bar-label">${dest}</span><div class="pg-bar-fill" style="width:${pct}%"></div><span class="pg-bar-val">${cnt}</span></div>`;
+    });
+    html += `</div>`;
+
+    html += `<div class="pg-card">`;
+    html += `<h5>Exported Substances (Top 5)</h5>`;
+    const maxSub = Math.max(...p.exp.s.map(s => s[1]));
+    p.exp.s.slice(0, 5).forEach(([subst, cnt]) => {
+      const pct = (cnt / maxSub) * 100;
+      html += `<div class="pg-bar"><span class="pg-bar-label">${subst}</span><div class="pg-bar-fill" style="width:${pct}%"></div><span class="pg-bar-val">${cnt}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (p.rec.t > 0) {
+    html += `<div class="pg-card">`;
+    html += `<h5>Received From (Top 5)</h5>`;
+    const maxOrig = Math.max(...p.rec.o.map(o => o[1]));
+    p.rec.o.slice(0, 5).forEach(([orig, cnt]) => {
+      const pct = (cnt / maxOrig) * 100;
+      html += `<div class="pg-bar"><span class="pg-bar-label">${orig}</span><div class="pg-bar-fill recv" style="width:${pct}%"></div><span class="pg-bar-val">${cnt}</span></div>`;
+    });
+    html += `</div>`;
+
+    html += `<div class="pg-card">`;
+    html += `<h5>Received Substances (Top 5)</h5>`;
+    const maxRecSub = Math.max(...p.rec.s.map(s => s[1]));
+    p.rec.s.slice(0, 5).forEach(([subst, cnt]) => {
+      const pct = (cnt / maxRecSub) * 100;
+      html += `<div class="pg-bar"><span class="pg-bar-label">${subst}</span><div class="pg-bar-fill recv" style="width:${pct}%"></div><span class="pg-bar-val">${cnt}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+
+  html += `<div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--rule);"><div style="display:flex;gap:12px;margin-bottom:16px;"><div><div class="big-number">${p.exp.t || 0}</div><div class="big-label">Notifications Exported</div></div><div><div class="big-number">${p.rec.t || 0}</div><div class="big-label">Notifications Received</div></div></div>`;
+
+  const allY = [...new Set([...Object.keys(p.exp.y), ...Object.keys(p.rec.y)])].sort();
+  if (allY.length > 0) {
+    html += `<div id="trendChart" style="height:200px;margin-top:16px;"></div>`;
+  }
+
+  html += `<button class="btn-csv" onclick="downloadCSV('${country.replace(/'/g, "\\'")}')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Download CSV</button>`;
+  html += `</div>`;
+
+  detail.innerHTML = html;
+
+  if (allY.length > 0) {
+    setTimeout(() => {
+      const ctx = document.getElementById('trendChart').getContext('2d');
+      if (ctx) {
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: allY,
+            datasets: [
+              {
+                label: 'Exported',
+                data: allY.map(y => p.exp.y[y] || 0),
+                borderColor: '#52b788',
+                backgroundColor: 'rgba(82,183,136,0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true
+              },
+              {
+                label: 'Received',
+                data: allY.map(y => p.rec.y[y] || 0),
+                borderColor: '#c1121f',
+                backgroundColor: 'rgba(193,18,31,0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: { font: { family: 'DM Sans, sans-serif', size: 11 }, color: '#1a1714' }
+              }
+            },
+            scales: {
+              x: { ticks: { font: { family: 'DM Sans, sans-serif', size: 10 }, color: '#8a8378' }, grid: { color: 'rgba(26,23,20,0.05)' } },
+              y: { ticks: { font: { family: 'DM Sans, sans-serif', size: 10 }, color: '#8a8378' }, grid: { color: 'rgba(26,23,20,0.05)' } }
+            }
+          }
+        });
+      }
+    }, 0);
+  }
+}
+
+renderCountryList();
+</script>
+
+</body>
+</html>
